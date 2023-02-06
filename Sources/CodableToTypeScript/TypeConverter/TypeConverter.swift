@@ -122,8 +122,12 @@ extension TypeConverter {
         {
             return []
         }
-        return try genericContext.genericParams.items.map { (param) in
-            try generator.converter(for: param.declaredInterfaceType)
+        return try withErrorCollector { collect in
+            genericContext.genericParams.items.compactMap { (param) in
+                collect(at: param.name) {
+                    try generator.converter(for: param.declaredInterfaceType)
+                }
+            }
         }
     }
 

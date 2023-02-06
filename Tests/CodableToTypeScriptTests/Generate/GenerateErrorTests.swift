@@ -66,4 +66,19 @@ final class GenerateErrorTests: GenerateTestCaseBase {
             """)
         }
     }
+
+    func testGeneric() throws {
+        XCTAssertThrowsError(try assertGenerate(
+            source: """
+            struct S {
+                var a: T<A>
+            }
+            struct T<U> {}
+            """
+        )) { (error) in
+            XCTAssertEqual("\(error)", """
+            S.a: Error type can't be evaluated: A
+            """)
+        }
+    }
 }
