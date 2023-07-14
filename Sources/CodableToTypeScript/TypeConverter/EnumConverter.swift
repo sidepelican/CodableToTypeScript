@@ -49,71 +49,46 @@ struct EnumConverter: TypeConverter {
             guard try hasJSONType() else { return nil }
         }
 
-        let genericParams: [TSTypeParameterNode] = try self.genericParams().map {
-            .init(try $0.name(for: target))
-        }
-
+        var tsType: any TSType
         switch kind {
         case .never:
-            return TSTypeDecl(
-                modifiers: [.export],
-                name: try name(for: target),
-                genericParams: genericParams,
-                type: TSIdentType.never
-            )
+            tsType = TSIdentType.never
         case .string:
             let items: [any TSType] = decl.caseElements.map { (ce) in
                 TSStringLiteralType(ce.name)
             }
-
-            return TSTypeDecl(
-                modifiers: [.export],
-                name: try name(for: target),
-                genericParams: genericParams,
-                type: TSUnionType(items)
-            )
+            tsType = TSUnionType(items)
         case .int:
             switch target {
             case .entity:
                 let items: [any TSType] = decl.caseElements.map { (ce) in
                     TSStringLiteralType(ce.name)
                 }
-
-                return TSTypeDecl(
-                    modifiers: [.export],
-                    name: try name(for: target),
-                    genericParams: genericParams,
-                    type: TSUnionType(items)
-                )
+                tsType = TSUnionType(items)
             case .json:
                 let items: [any TSType] = decl.caseElements.withIntegerRawValues.map { (_, rawValue) in
-                    return TSNumberLiteralType(rawValue)
+                    TSNumberLiteralType(rawValue)
                 }
-
-                return TSTypeDecl(
-                    modifiers: [.export],
-                    name: try name(for: target),
-                    genericParams: genericParams,
-                    type: TSUnionType(items)
-                )
+                tsType = TSUnionType(items)
             }
-        case .normal: break
-        }
-
-        let items: [any TSType] = try withErrorCollector { collect in
-            decl.caseElements.compactMap { (ce) in
-                collect(at: ce.name) {
-                    try transpile(caseElement: ce, target: target)
+        case .normal:
+            let items: [any TSType] = try withErrorCollector { collect in
+                decl.caseElements.compactMap { (ce) in
+                    collect(at: ce.name) {
+                        try transpile(caseElement: ce, target: target)
+                    }
                 }
             }
+
+            var type: any TSType = TSUnionType(items)
+            if items.count == 1 {
+                // unwrap union
+                type = items[0]
+            }
+            tsType = type
         }
 
         let name = try name(for: target)
-        var type: any TSType = TSUnionType(items)
-        if items.count == 1 {
-            // unwrap union
-            type = items[0]
-        }
 
         switch target {
         case .entity:
@@ -123,15 +98,19 @@ struct EnumConverter: TypeConverter {
                     try TSIdentType($0.name(for: .entity))
                 }
             )
-            type = TSIntersectionType(type, tag)
-        case .json: break
+            tsType = TSIntersectionType(tsType, tag)
+        case .json:
+            break
         }
 
+        let genericParams: [TSTypeParameterNode] = try self.genericParams().map {
+            .init(try $0.name(for: target))
+        }
         return TSTypeDecl(
             modifiers: [.export],
             name: name,
             genericParams: genericParams,
-            type: type
+            type: tsType
         )
     }
 

@@ -105,6 +105,18 @@ export type E = {
         )
     }
 
+    func testNever() throws {
+        try assertGenerate(
+            source: """
+enum E {
+}
+""",
+            expecteds: ["""
+export type E = never & TagRecord<"E">;
+"""]
+        )
+    }
+
     func testOptional() throws {
         try assertGenerate(
             source: """
@@ -208,7 +220,7 @@ enum E: String {
 }
 """,
             expecteds: ["""
-export type E = "a" | "b"
+export type E = ("a" | "b") & TagRecord<"E">;
 """]
         )
 
@@ -221,7 +233,7 @@ enum E: String {
 }
 """,
             expecteds: ["""
-export type E = "a" | "b" | "c"
+export type E = ("a" | "b" | "c") & TagRecord<"E">;
 """]
         )
 
@@ -235,10 +247,12 @@ enum E: String {
 }
 """,
             expecteds: ["""
-export type E = "a" |
-"b" |
-"c" |
-"d"
+export type E = (
+    "a" |
+    "b" |
+    "c" |
+    "d"
+) & TagRecord<"E">;
 """]
         )
     }
@@ -253,7 +267,7 @@ enum E: Int, Codable, Sendable {
 }
 """,
             expecteds: ["""
-export type E = "a" | "b" | "c";
+export type E = ("a" | "b" | "c") & TagRecord<"E">;
 """, """
 export type E_JSON = 0 | -100 | -99;
 """, """
